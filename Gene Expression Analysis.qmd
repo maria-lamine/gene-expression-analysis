@@ -1,0 +1,78 @@
+---
+title: "Gene Expression Analysis"
+author: "Maria Lamine"
+format: html
+---
+```{r}
+library(tidyverse)
+
+metadata <- read_csv("data/metadata.csv")
+expression <- read_csv("data/expression.csv")
+```
+
+```{r}
+# join datasets and stanarize colum names
+data_merged <- expression %>%
+  rename(sample_id = SampleID) %>%
+  left_join(metadata, by = "sample_id")
+
+# View the merged data preview
+head(data_merged)
+  
+```
+
+```{r}
+# Join datasets and fix group name typos
+data_merged <- expression %>%
+  rename(sample_id = SampleID) %>%
+  left_join(metadata, by = "sample_id") %>%
+  mutate(
+    group = str_to_title(group),
+    group = if_else(group == "Treatmnt", "Treatment", group)
+  )
+
+head(data_merged)
+```
+
+
+```{r}
+# 1. Plot gene expression levels across groups
+ggplot(data_merged, aes(x = group, y = Expression, fill = group)) +
+  geom_boxplot(alpha = 0.6, outlier.shape = NA) +
+  geom_jitter(width = 0.2, alpha = 0.7) +
+  facet_wrap(~ Gene, scales = "free_y") +
+  theme_minimal() +
+  labs(
+    title = "Gene Expression Comparison Across Groups",
+    x = "Group",
+    y = "Expression Level"
+  )
+```
+
+```{r}
+# Statistical analysis: Mean difference, Log2 Fold Change, and Welch's t-test 
+diff_expr <- data_merged %>%
+  filter(!is.na(Expression), !is.na(group)) %>%
+  group_by(Gene) %>%
+  summarise( 
+    mean_control = round(mean(Expression[group == "Control"]), 2),
+    mean_treatment = round(mean(Expression[group == "Treatment"]), 2),
+    log2_fc = round(log2(mean_treatment / mean_control), 2),
+    p_value = round(t.test(Expression ~ group)$p.value, 4),
+    .groups = "drop"
+) %>%
+mutate(
+  significant = if_else(p_value < 0.05, "Yes", "No")
+)
+diff_expr
+```
+    
+    
+    
+    
+
+
+
+
+
+
